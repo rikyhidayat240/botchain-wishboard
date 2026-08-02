@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WishBoard — BOT Chain</title>
+<meta name="description" content="Immortalize your wishes forever on the BOT Chain.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════
+   TOKENS — True Black & Subtle Warmth
+══════════════════════════════════════════════ */
+:root {
+  --bg:         #000000;
+  --bg2:        #050505;
+  --surface:    rgba(255,255,255,0.025);
+  --surface2:   rgba(255,255,255,0.04);
+  --border:     rgba(255,255,255,0.06);
+  --border-h:   rgba(255,255,255,0.12);
+  --text-1:     #ffffff;
+  --text-2:     #a1a1aa;
+  --text-3:     #52525b;
+  --accent:     #d4a373; /* warm subtle copper/gold */
+  --accent-dim: rgba(212,163,115,0.1);
+  --green:      #22c55e;
+  --grad-main:  linear-gradient(135deg, #e6b980 0%, #ca8a56 100%);
+  --r:          0.75rem;
+  --r-sm:       0.5rem;
+  --r-lg:       1.25rem;
+  --tr:         0.18s cubic-bezier(.4,0,.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; height: 100%; width: 100%; font-size: 16px; }
+/* Mencegah UI terlihat terlalu kecil saat di zoom out (scaling fluidly) */
+@media (min-width: 1280px) {
+  html { font-size: 1.25vw; } 
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text-1);
+  min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ══════════════════════════════════════════════
+   ANIMATED BLOBS (Black, White, Yellow/Gold)
+══════════════════════════════════════════════ */
+.blobs {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--bg); /* Hitam */
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+}
+
+.blob-1 {
+  width: 55vw; height: 55vw; min-width: 400px;
+  background: rgba(212, 163, 115, 0.12); /* Kuning / Gold */
+  top: -20%; left: -10%;
+  animation: drift1 20s ease-in-out infinite alternate;
+}
+
+.blob-2 {
+  width: 45vw; height: 45vw; min-width: 300px;
+  background: rgba(255, 255, 255, 0.08); /* Putih */
+  bottom: -15%; right: -10%;
+  animation: drift2 25s ease-in-out infinite alternate;
+}
+
+.blob-3 {
+  width: 40vw; height: 40vw; min-width: 300px;
+  background: rgba(230, 185, 128, 0.08); /* Kuning / Amber */
+  top: 35%; left: 35%;
+  animation: drift3 28s ease-in-out infinite alternate;
+}
+
+@keyframes drift1 { from { transform: translate(0, 0) scale(1); } to { transform: translate(8vw, 8vh) scale(1.1); } }
+@keyframes drift2 { from { transform: translate(0, 0) scale(1); } to { transform: translate(-8vw, -6vh) scale(1.15); } }
+@keyframes drift3 { from { transform: translate(0, 0) scale(1.1); } to { transform: translate(-10vw, 10vh) scale(0.9); } }
+
+/* ══════════════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════════════ */
+.app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 1.25rem 6rem;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 55rem; /* Menggunakan rem agar ikut membesar jika di zoom out (karena html vw scaling) */
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ══════════════════════════════════════════════
+   NAV BAR
+══════════════════════════════════════════════ */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 0 0;
+  gap: 1rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.logo-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  color: var(--text-2);
+}
+
+.logo-text {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.025em;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.net-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.net-pip {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 5px rgba(34,197,94,0.4);
+  animation: pip 2s ease-in-out infinite;
+}
+
+@keyframes pip {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.3); }
+}
+
+/* ══════════════════════════════════════════════
+   HERO
+══════════════════════════════════════════════ */
+.hero {
+  padding: 2.5rem 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text-1);
+}
+
+.hero h1 .grad {
+  background: var(--grad-main);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-sub {
+  font-size: 0.9375rem;
+  color: var(--text-2);
+  line-height: 1.65;
+  max-width: 50ch;
+}
+
+/* ══════════════════════════════════════════════
+   GLASS CARD
+══════════════════════════════════════════════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: border-color var(--tr), background var(--tr);
+  position: relative;
+  overflow: hidden;
+}
+
+/* very subtle top border highlight */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent 40%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.card:hover { border-color: var(--border-h); background: var(--surface2); }
+
+.card-body { padding: 1.5rem; }
+
+.card-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.card-label::before {
+  content: '';
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════
+   WALLET ROW
+══════════════════════════════════════════════ */
+.wallet-card .card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.wallet-info { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.wallet-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.wallet-addr {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  font-family: 'Courier New', monospace;
+}
+
+.wallet-addr.dim { color: var(--text-3); font-family: inherit; }
+
+/* ══════════════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--r-sm);
+  transition: transform var(--tr), opacity var(--tr), background var(--tr), border-color var(--tr), color var(--tr);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  letter-spacing: -0.01em;
+}
+
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Primary — White solid (Like reference design) */
+.btn-primary {
+  background: #ffffff;
+  color: #000000;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.875rem;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #e5e5e5;
+  transform: translateY(-1px);
+}
+
+/* Ghost / Neutral */
+.btn-ghost {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.8rem;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface2);
+  border-color: var(--border-h);
+}
+
+.spinner {
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 1.5px solid rgba(0,0,0,0.2);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+.btn-ghost .spinner {
+  border-color: rgba(255,255,255,0.2);
+  border-top-color: #fff;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══════════════════════════════════════════════
+   FORM
+══════════════════════════════════════════════ */
+.field { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.field-lbl {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+textarea#wishInput {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  resize: none;
+  outline: none;
+  min-height: 6rem;
+  transition: border-color var(--tr), box-shadow var(--tr), background var(--tr);
+}
+
+textarea#wishInput::placeholder { color: var(--text-3); }
+
+textarea#wishInput:focus {
+  border-color: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.02);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.05);
+}
+
+.form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.char-count {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.char-count.warn   { color: #eab308; }
+.char-count.danger { color: #f87171; }
+
+.fee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+/* ══════════════════════════════════════════════
+   LIST SECTION
+══════════════════════════════════════════════ */
+.list-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.list-titles { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.list-eyebrow {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.list-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.02em;
+}
+
+.count-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.65rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+#wishList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+/* ══════════════════════════════════════════════
+   WISH CARD
+══════════════════════════════════════════════ */
+.wish-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color var(--tr), background var(--tr), transform var(--tr);
+  opacity: 0;
+  transform: translateY(10px);
+  animation: slideUp 0.35s ease forwards;
+  animation-delay: var(--d, 0ms);
+  position: relative;
+  overflow: hidden;
+}
+
+/* left subtle accent bar */
+.wish-card::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 20%; bottom: 20%;
+  width: 2px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 0 2px 2px 0;
+  opacity: 0;
+  transition: opacity var(--tr);
+}
+
+.wish-card:hover {
+  border-color: var(--border-h);
+  background: var(--surface2);
+}
+
+.wish-card:hover::after { opacity: 1; }
+
+@keyframes slideUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wish-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.wish-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.wish-sender {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.wish-num {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.4rem;
+}
+
+.wish-msg {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--text-1);
+  word-break: break-word;
+  padding-left: 2.6rem;
+}
+
+.wish-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--border);
+  padding-left: 2.6rem;
+}
+
+.wish-time {
+  font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.chain-pill {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ══════════════════════════════════════════════
+   EMPTY + SKELETON
+══════════════════════════════════════════════ */
+.empty {
+  padding: 3.5rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.empty-ico { font-size: 2.5rem; opacity: 0.2; line-height: 1; }
+
+.empty h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.empty p {
+  font-size: 0.8rem;
+  color: var(--text-3);
+  max-width: 28ch;
+  line-height: 1.55;
+}
+
+.skel {
+  background: linear-gradient(90deg,
+    var(--surface) 0%,
+    var(--surface2) 50%,
+    var(--surface) 100%);
+  background-size: 200% 100%;
+  border-radius: 0.3rem;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+.skel-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ══════════════════════════════════════════════
+   STATS ROW
+══════════════════════════════════════════════ */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  line-height: 1;
+}
+
+.stat-lbl {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ══════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════ */
+#toasts {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.6rem;
+  align-items: flex-end;
+  pointer-events: none;
+  max-width: min(90vw, 340px);
+  width: 100%;
+}
+
+.toast {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.875rem 1rem;
+  background: #0a0a0a;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--r);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05);
+  pointer-events: auto;
+  animation: tIn 0.28s cubic-bezier(0.34,1.4,0.64,1) forwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.toast.out { animation: tOut 0.22s ease forwards; }
+
+@keyframes tIn {
+  from { opacity: 0; transform: translateX(30px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(0)    scale(1); }
+}
+
+@keyframes tOut {
+  from { opacity: 1; transform: translateX(0) scale(1); max-height: 120px; }
+  to   { opacity: 0; transform: translateX(30px) scale(0.95); max-height: 0; padding: 0; margin-bottom: 0; }
+}
+
+/* bottom progress bar */
+.toast::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--tc, rgba(255,255,255,0.4));
+  transform-origin: left;
+  animation: tBar var(--td, 4s) linear forwards;
+}
+
+.toast.persist::after { animation: none; background: rgba(255,255,255,0.1); }
+
+@keyframes tBar {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+.toast.success { --tc: #22c55e; }
+.toast.error   { --tc: #f87171; border-color: rgba(248,113,113,0.2); }
+.toast.warning { --tc: #eab308; }
+.toast.info    { --tc: rgba(255,255,255,0.6); }
+
+.t-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.t-spin {
+  width: 1rem; height: 1rem;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.t-body { flex: 1; min-width: 0; }
+
+.t-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.3;
+}
+
+.t-sub {
+  font-size: 0.75rem;
+  color: var(--text-2);
+  margin-top: 0.15rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* ══════════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════════ */
+.foot {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-3);
+  padding-top: 0.5rem;
+}
+
+/* ══════════════════════════════════════════════
+   SCROLLBAR
+══════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .stats-row .stat-card:last-child { grid-column: span 2; }
+  #toasts { right: 0.75rem; left: 0.75rem; max-width: 100%; bottom: 1.25rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+<div id="toasts"></div>
+
+<div class="app">
+<div class="wrap">
+
+  <!-- NAV -->
+  <nav class="navbar">
+    <div class="logo">
+      <div class="logo-mark">✦</div>
+      <span class="logo-text">WishBoard</span>
+    </div>
+    <div class="nav-right">
+      <span class="net-badge">
+        <span class="net-pip"></span>
+        BOT Chain
+      </span>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hero">
+    <span class="hero-eyebrow">✦ Web3 Application</span>
+    <h1>Immortalize Your <span class="grad">Wishes</span><br>Forever.</h1>
+    <p class="hero-sub">Send your messages and wishes into the blockchain. Every word you write will live on-chain eternally.</p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card">
+      <span class="stat-val" id="statWishes">—</span>
+      <span class="stat-lbl">Total Wishes</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val">0.001 BOT</span>
+      <span class="stat-lbl">Before Gas</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-val" id="statNet">BOT</span>
+      <span class="stat-lbl">Network</span>
+    </div>
+  </div>
+
+  <!-- WALLET -->
+  <div class="card wallet-card">
+    <div class="card-body">
+      <div class="wallet-info">
+        <span class="wallet-title" id="walletTitle">Connect Wallet</span>
+        <span class="wallet-addr dim" id="walletAddr">Access features via MetaMask</span>
+      </div>
+      <button class="btn btn-ghost" id="connectBtn">Connect</button>
+    </div>
+  </div>
+
+  <!-- SEND WISH -->
+  <div class="card">
+    <div class="card-body" style="display:flex;flex-direction:column;gap:1rem;">
+      <div class="card-label">Write On-chain Message</div>
+
+      <div class="field">
+        <label class="field-lbl" for="wishInput">Your Wish</label>
+        <textarea
+          id="wishInput"
+          placeholder="Write something meaningful... It will be recorded forever on the blockchain."
+          maxlength="280"
+          rows="4"
+        ></textarea>
+      </div>
+
+      <div class="form-footer">
+        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+          <span class="fee-chip">0.001 BOT + Gas</span>
+          <span class="char-count" id="charCount">0 / 280</span>
+        </div>
+        <button class="btn btn-primary" id="sendBtn" disabled>
+          <span id="sendLabel">Send Wish</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WISHES LIST -->
+  <div style="display:flex;flex-direction:column;gap:1rem;">
+    <div class="list-head">
+      <div class="list-titles">
+        <span class="list-eyebrow">Activity</span>
+        <span class="list-title">Recent Wishes</span>
+      </div>
+      <div style="display:flex;gap:0.6rem;align-items:center;">
+        <span class="count-tag"><span id="wishCount">0</span> entries</span>
+        <button class="btn btn-ghost" id="refreshBtn" style="padding:0.3rem 0.75rem; font-size:0.75rem;">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div id="wishList">
+      <div class="empty">
+        <span class="empty-ico">⬡</span>
+        <h3>Awaiting Connection</h3>
+        <p>Connect wallet to view data from the blockchain.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOT -->
+  <div class="foot">Built on BOT Chain · Powered by Ethers.js v5</div>
+
+</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  ⚙  CONFIGURATION — REPLACE THESE TWO VARIABLES
+// ════════════════════════════════════════════════════
+const CONTRACT_ADDRESS = "0x6d215c3d12e29956D6102ccf995d32DFBa76d27f";
+
+const CONTRACT_ABI = [
+  { "inputs": [], "stateMutability": "nonpayable", "type": "constructor" },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true,  "internalType": "address", "name": "sender",    "type": "address" },
+      { "indexed": false, "internalType": "string",  "name": "message",   "type": "string"  },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "name": "NewWish", "type": "event"
+  },
+  {
+    "inputs": [{ "internalType": "string", "name": "_message", "type": "string" }],
+    "name": "addWish", "outputs": [], "stateMutability": "payable", "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllWishes",
+    "outputs": [{
+      "components": [
+        { "internalType": "address", "name": "sender",    "type": "address" },
+        { "internalType": "string",  "name": "message",   "type": "string"  },
+        { "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+      ],
+      "internalType": "struct WishBoard.Wish[]", "name": "", "type": "tuple[]"
+    }],
+    "stateMutability": "view", "type": "function"
+  },
+  { "inputs": [], "name": "owner",    "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" },
+  { "inputs": [], "name": "wishFee",  "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "name": "wishes",
+    "outputs": [
+      { "internalType": "address", "name": "sender",    "type": "address" },
+      { "internalType": "string",  "name": "message",   "type": "string"  },
+      { "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "stateMutability": "view", "type": "function"
+  },
+  { "inputs": [], "name": "withdrawBOT", "outputs": [], "stateMutability": "nonpayable", "type": "function" }
+];
+// ════════════════════════════════════════════════════
+
+var provider, signer, contract, connected = false;
+
+var $ = function(id){ return document.getElementById(id); };
+var connectBtn  = $('connectBtn');
+var sendBtn     = $('sendBtn');
+var sendLabel   = $('sendLabel');
+var wishInput   = $('wishInput');
+var charCount   = $('charCount');
+var wishList    = $('wishList');
+var wishCount   = $('wishCount');
+var walletTitle = $('walletTitle');
+var walletAddr  = $('walletAddr');
+var statWishes  = $('statWishes');
+var refreshBtn  = $('refreshBtn');
+
+// ── Toast ─────────────────────────────────────────
+var TR = $('toasts'), _tid = 0;
+
+function toast(o){
+  var id = ++_tid;
+  var dur = o.duration || 4000;
+  var icons = { success:'✓', error:'✕', warning:'⚠', info:'✦' };
+  var el = document.createElement('div');
+  el.className = 'toast ' + (o.type||'info') + (o.persist?' persist':'');
+  el.id = 't'+id;
+  el.style.setProperty('--td', (dur/1000)+'s');
+
+  var ico = o.type==='loading'
+    ? '<div class="t-spin"></div>'
+    : '<span class="t-icon">'+(icons[o.type]||'✦')+'</span>';
+
+  el.innerHTML = ico +
+    '<div class="t-body">' +
+      '<div class="t-title">'+(o.title||'')+'</div>' +
+      (o.sub ? '<div class="t-sub">'+o.sub+'</div>' : '') +
+    '</div>';
+
+  TR.appendChild(el);
+  function off(){ el.classList.add('out'); setTimeout(function(){ el.remove(); }, 240); }
+  if(!o.persist) setTimeout(off, dur);
+  return { dismiss: off };
+}
+
+// ── Helpers ──────────────────────────────────────
+function sh(a){ return a ? a.slice(0,6)+'…'+a.slice(-4) : ''; }
+function ts(t){ return new Date(Number(t)*1000).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function esc(s){ var d=document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
+function addrGrad(a){
+  var h1 = parseInt(a.slice(2,5), 16) % 360;
+  return 'hsl(' + h1 + ', 15%, 25%)';
+}
+
+// ── Connect ───────────────────────────────────────
+connectBtn.addEventListener('click', async function(){
+  if(connected) return;
+  if(!window.ethereum){
+    toast({type:'error', title:'MetaMask not found', sub:'Please install MetaMask in your browser.'});
+    return;
+  }
+  connectBtn.disabled = true;
+  connectBtn.innerHTML = '<span class="spinner" style="border-top-color:#fff; border-color:rgba(255,255,255,0.2)"></span>';
+  try {
+    await window.ethereum.request({method:'eth_requestAccounts'});
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    signer   = provider.getSigner();
+    var addr = await signer.getAddress();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+    connected = true;
+
+    walletTitle.textContent = sh(addr);
+    walletAddr.textContent  = addr;
+    walletAddr.classList.remove('dim');
+    connectBtn.innerHTML    = '<span style="width:.4rem;height:.4rem;border-radius:50%;background:#22c55e;box-shadow:0 0 5px rgba(34,197,94,0.4);display:inline-block;flex-shrink:0;"></span> ' + sh(addr);
+    connectBtn.disabled     = false;
+    sendBtn.disabled        = false;
+
+    toast({type:'success', title:'Wallet Connected', sub: sh(addr)});
+    loadWishes();
+
+    window.ethereum.on('accountsChanged', function(accs){
+      if(!accs.length){
+        connected=false; contract=null;
+        walletTitle.textContent='Connect Wallet';
+        walletAddr.textContent='Access features via MetaMask';
+        walletAddr.classList.add('dim');
+        connectBtn.innerHTML='Connect'; connectBtn.disabled=false;
+        sendBtn.disabled=true;
+        statWishes.textContent='—';
+        wishCount.textContent='0';
+        renderEmpty('connect');
+        toast({type:'info', title:'Wallet Disconnected'});
+      }
+    });
+  } catch(e){
+    connectBtn.innerHTML='Connect'; connectBtn.disabled=false;
+    if(e.code===4001) toast({type:'warning', title:'Access Denied'});
+    else toast({type:'error', title:'Connection Failed', sub:e.message});
+  }
+});
+
+// ── Send ─────────────────────────────────────────
+sendBtn.addEventListener('click', async function(){
+  if(!contract){ toast({type:'warning',title:'Please connect your wallet'}); return; }
+  var msg = wishInput.value.trim();
+  if(!msg){ toast({type:'warning',title:'Message cannot be empty'}); return; }
+
+  sendBtn.disabled=true;
+  sendLabel.innerHTML='<span class="spinner"></span>';
+
+  var t1=toast({type:'loading',title:'Processing Transaction',sub:'Please confirm in MetaMask...',persist:true});
+  try {
+    var tx = await contract.addWish(msg, {value: ethers.utils.parseEther('0.001')});
+    t1.dismiss();
+    var t2=toast({type:'loading',title:'Awaiting Block',sub:'Tx: '+sh(tx.hash),persist:true});
+    await tx.wait();
+    t2.dismiss();
+    toast({type:'success',title:'Success!',sub:'Message recorded on the blockchain.',duration:5000});
+    wishInput.value=''; charCount.textContent='0 / 280'; charCount.className='char-count';
+    await loadWishes();
+  } catch(e){
+    t1.dismiss();
+    if(e.code===4001||e.code==='ACTION_REJECTED') toast({type:'warning',title:'Transaction Cancelled'});
+    else if(e.message&&e.message.indexOf('insufficient funds')>=0) toast({type:'error',title:'Insufficient Funds',sub:'A minimum of 0.001 BOT is required.'});
+    else toast({type:'error',title:'Transaction Failed',sub:e.reason||e.message,duration:5000});
+  } finally {
+    sendBtn.disabled=false; sendLabel.textContent='Send Wish';
+  }
+});
+
+// ── Refresh ───────────────────────────────────────
+refreshBtn.addEventListener('click', async function(){
+  if(!contract){ toast({type:'info',title:'Connect your wallet first'}); return; }
+  refreshBtn.disabled=true; refreshBtn.textContent='...';
+  await loadWishes();
+  refreshBtn.disabled=false; refreshBtn.textContent='↻ Refresh';
+});
+
+// ── Char counter ──────────────────────────────────
+wishInput.addEventListener('input', function(){
+  var l=wishInput.value.length;
+  charCount.textContent=l+' / 280';
+  charCount.className='char-count'+(l>270?' danger':l>240?' warn':'');
+});
+
+// ── Load ─────────────────────────────────────────
+async function loadWishes(){
+  if(!contract) return;
+  renderSkel(3);
+  try {
+    var all = await contract.getAllWishes();
+    var n = all.length;
+    wishCount.textContent  = n;
+    statWishes.textContent = n;
+    if(!n){ renderEmpty('first'); return; }
+    renderCards([].slice.call(all).reverse());
+  } catch(e){
+    console.error(e);
+    toast({type:'error',title:'Failed to read data'});
+    renderEmpty('error');
+  }
+}
+
+function renderCards(items){
+  wishList.innerHTML='';
+  items.forEach(function(w,i){
+    var c=document.createElement('div');
+    c.className='wish-card';
+    c.style.setProperty('--d',(i*40)+'ms');
+    var g=addrGrad(w.sender);
+    var ini=w.sender.slice(2,4).toUpperCase();
+    var num=items.length-i;
+    c.innerHTML=
+      '<div class="wish-header">'+
+        '<div class="wish-avatar-row">'+
+          '<div class="avatar" style="background:'+g+';">'+ini+'</div>'+
+          '<span class="wish-sender">'+sh(w.sender)+'</span>'+
+        '</div>'+
+        '<span class="wish-num">#'+num+'</span>'+
+      '</div>'+
+      '<p class="wish-msg">'+esc(w.message)+'</p>'+
+      '<div class="wish-foot">'+
+        '<span class="wish-time">'+ts(w.timestamp)+'</span>'+
+        '<span class="chain-pill">BOT Chain</span>'+
+      '</div>';
+    wishList.appendChild(c);
+  });
+}
+
+function renderEmpty(r){
+  var m={
+    connect:{ico:'⬡',h:'Awaiting Connection',p:'Connect wallet to view data from the blockchain.'},
+    first:  {ico:'✧',h:'Empty Space',p:'Be the first to write something.'},
+    error:  {ico:'✕',h:'Failed to Load Data',p:'Could not connect to the blockchain network.'}
+  };
+  var d=m[r]||m.connect;
+  wishList.innerHTML='<div class="empty"><span class="empty-ico">'+d.ico+'</span><h3>'+d.h+'</h3><p>'+d.p+'</p></div>';
+}
+
+function renderSkel(n){
+  wishList.innerHTML='';
+  for(var i=0;i<n;i++){
+    wishList.innerHTML+=
+      '<div class="skel-card">'+
+        '<div style="display:flex;gap:.6rem;align-items:center;">'+
+          '<div class="skel" style="width:2rem;height:2rem;border-radius:50%;flex-shrink:0;"></div>'+
+          '<div style="flex:1;display:flex;flex-direction:column;gap:.35rem;">'+
+            '<div class="skel" style="height:.7rem;width:40%;"></div>'+
+          '</div>'+
+          '<div class="skel" style="height:.65rem;width:2rem;border-radius:.25rem;"></div>'+
+        '</div>'+
+        '<div class="skel" style="height:.85rem;width:95%;margin-left:2.6rem;"></div>'+
+        '<div class="skel" style="height:.85rem;width:70%;margin-left:2.6rem;"></div>'+
+        '<div style="display:flex;justify-content:space-between;margin-left:2.6rem;padding-top:.4rem;">'+
+          '<div class="skel" style="height:.6rem;width:5rem;"></div>'+
+          '<div class="skel" style="height:.6rem;width:3rem;"></div>'+
+        '</div>'+
+      '</div>';
+  }
+}
+</script>
+</body>
+</html>
