@@ -1,7 +1,7 @@
 # Web3 Wish Board ✨
 
 **Live Demo:**  
-**Smart Contract Address:** [Insert Contract Address Here]
+**Smart Contract Address:** 
 
 ## 📖 What is Web3 Wish Board?
 
