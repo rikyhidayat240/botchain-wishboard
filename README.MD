@@ -1,7 +1,7 @@
 # Web3 Wish Board ✨
 
-**Live Demo:**  
-**Smart Contract Address:** 
+**Live Demo:**  https://wishboard.my.id/ | https://x.com/i/status/2084227595126898972 
+**Smart Contract Address:** 0x2B7b801A9719601c15a4359c5bbF5AC4ecFa9527
 
 ## 📖 What is Web3 Wish Board?
 
